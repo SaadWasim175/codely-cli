@@ -1,0 +1,1 @@
+int git(char *arg, char *link, char *dir);

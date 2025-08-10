@@ -1,0 +1,1 @@
+int preset(const char* preset);

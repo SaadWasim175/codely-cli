@@ -1,0 +1,1 @@
+int print_file_info(const char* file_info);
