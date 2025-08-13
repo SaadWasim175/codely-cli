@@ -4,6 +4,17 @@
 #include <stdio.h>
 #include <string.h>
 
+int command_exists(const char *cmd) {
+    char buffer[256];
+#ifdef _WIN32
+    snprintf(buffer, sizeof(buffer), "where %s >nul 2>nul", cmd);
+#else
+    // On Linux/macOS, use `command -v`
+    snprintf(buffer, sizeof(buffer), "command -v %s >/dev/null 2>&1", cmd);
+#endif
+    return system(buffer) == 0;
+}
+
 int preset (char *preset_name) {
     if(strcmp(preset_name, "js") == 0 || strcmp(preset_name, "javascript") == 0){
         FILE *jsptr;
@@ -215,7 +226,138 @@ int preset (char *preset_name) {
                 printf(C_BLUE"Successfully made project at current path."SGR_RESET);
             }
 
-    }
+    } else if (strcmp(preset_name, "c") == 0 || strcmp(preset_name, "clang") == 0){
+        char cmakechoice[5];
+        printf(C_MAGENTA"Making C preset...\n"SGR_RESET);
+
+        printf(C_BR_BLUE"Would you like to use CMake (y/n): "SGR_RESET);
+        fgets(cmakechoice, sizeof(cmakechoice), stdin); 
+        cmakechoice[strcspn(cmakechoice, "\n")] = 0;
+
+        if(strcmp(cmakechoice, "y") == 0 || strcmp(cmakechoice, "Y") == 0 || strcmp(cmakechoice, "yes") == 0){
+            printf(C_YELLOW"Generating CMake project...\n"SGR_RESET);
+            char projectname[64];
+            char cmakelist[512];
+            FILE *cmakeptr;
+            cmakeptr = fopen("CMakeLists.txt", "w");
+
+            printf(C_GREEN"Enter project name (default = myapp): "SGR_RESET);
+            fgets(projectname, sizeof(projectname), stdin);
+            projectname[strcspn(projectname, "\n")] = 0;
+
+            if(strcmp(projectname, "") != 0){
+                sprintf(cmakelist, "cmake_minimum_required(VERSION 3.10)\nproject(%s C)\n\nset(CMAKE_C_STANDARD 11)\n\nfile(GLOB SOURCES src/*.c)\nadd_executable(${PROJECT_NAME} ${SOURCES})\n", projectname);
+            } else{
+                sprintf(cmakelist, "cmake_minimum_required(VERSION 3.10)\nproject(myapp C)\n\nset(CMAKE_C_STANDARD 11)\n\nfile(GLOB SOURCES src/*.c)\nadd_executable(${PROJECT_NAME} ${SOURCES})\n");
+            }
+
+            fputs(cmakelist, cmakeptr);
+            fclose(cmakeptr);
+
+            printf(C_CYAN"Making Files and Folder structures..."SGR_RESET);
+            system("mkdir src");
+            FILE *mainptr = fopen("./src/main.c", "w");
+            if (!mainptr){
+                printf("Failed to make files, exiting...");
+                return 2;
+            }
+            fprintf(mainptr,
+                "#include <stdio.h>\n\n"
+                "int main(void) {\n"
+                "    printf(\"Hello, World!\\n\");\n"
+                "    return 0;\n"
+                "}\n"
+            );
+            fclose(mainptr);
+
+            system("mkdir build && cd build && cmake .. && cmake --build .");
+
+            printf(C_GREEN"\nBuild complete!\n"SGR_RESET);
+            printf(C_BR_BLUE"To run the program:\n"SGR_RESET);
+            printf(C_GRAY"cd build && ./your_executable_name\n"SGR_RESET);
+            printf(C_CYAN"\nTo rebuild after changes:\n"SGR_RESET);
+            printf(C_YELLOW"cd build && cmake --build .\n"SGR_RESET);
+            printf(C_BR_CYAN"\nHappy coding!\n"SGR_RESET);
+        } else if(strcmp(cmakechoice, "n") == 0 || strcmp(cmakechoice, "N") == 0 || strcmp(cmakechoice, "no") == 0) {
+            printf(C_GREEN"Generating base C template...\n"SGR_RESET);
+            
+            char clangstr[] = "#include <stdio.h>\n\nint product(int x, int y){\n    return x*y;\n}\n\nint main () {\n    int a, b;\n    a = 5;\n    b = 6;\n\n    int multipliedResult = product(a, b);\n    printf(\"%d x %d = %d\", a, b, multipliedResult);\n    \n    return 2;\n}\n";
+
+            FILE *clangptr = fopen("main.c", "w");
+            fputs(clangstr, clangptr);
+            fclose(clangptr);
+
+            system("mkdir include");
+            printf(C_MAGENTA"Making header file...\n"SGR_RESET);
+
+            FILE *headerptr = fopen("./include/header.h", "w");
+            fclose(headerptr);
+
+            printf(C_BR_CYAN"Generating executables..."SGR_RESET);
+
+            if (command_exists("clang")){
+                system("clang main.c -o main");
+            } else if(command_exists("gcc")){
+                system("gcc main.c -o main");
+            } else if (command_exists("gcc") && command_exists("clang")){
+                system("clang main.c -o main");
+            }
+            
+            printf(C_BLUE"\nFile generation done. Happy coding!\n"SGR_RESET);
+        }
+    } else if (strcmp(preset_name, "cpp") == 0 || strcmp(preset_name, "c++") == 0) {
+        printf(C_CYAN"Generating C++ template...\n"SGR_RESET);
+
+        char cppchoice[5];
+
+        printf(C_BR_BLUE"Would you like to use CMake (y / n): "SGR_RESET);
+        fgets(cppchoice, sizeof(cppchoice), stdin);
+        cppchoice[strcspn(cppchoice, "\n")] = 0;
+
+        if (strcmp(cppchoice, "y") == 0 || strcmp(cppchoice, "Y") == 0 || strcmp(cppchoice, "yes") == 0){
+            system("mkdir src");
+            FILE *mainptr = fopen("./src/main.cpp", "w");
+            char projName[64];            
+
+            printf("Enter project name (default = MyCppProject): ");
+            fgets(projName, sizeof(projName), stdin);
+
+            fprintf(mainptr, "#include <iostream>\n\nint main() {\n    std::cout << \"Hello, C++ world!\" << std::endl;\n    return 0;\n}\n");
+            fclose(mainptr);
+
+            FILE *cmakeptr = fopen("CMakeLists.txt", "w");
+            if (cmakeptr) {
+                char cmakelist[256];
+
+                if (strcmp(projName, "") != 0){
+                    sprintf(cmakelist, "cmake_minimum_required(VERSION 3.10)\n"
+                        "project(MyCppProject CXX)\n\n"
+                        "set(CMAKE_CXX_STANDARD 17)\n\n"
+                        "add_executable(%s src/main.cpp)\n", projName);
+                } else {
+                    sprintf(cmakelist, "cmake_minimum_required(VERSION 3.10)\n"
+                        "project(MyCppProject CXX)\n\n"
+                        "set(CMAKE_CXX_STANDARD 17)\n\n"
+                        "add_executable(MyCppProject src/main.cpp)\n");
+                }
+
+                fputs(cmakelist, cmakeptr);
+                fclose(cmakeptr);
+            }
+            printf(C_GREEN"\nC++ project structure created.\n"SGR_RESET);
+            printf(C_MAGENTA"Generating executables..."SGR_RESET);
+
+            system("mkdir build && cd build && cmake .. && cmake --build .");
+            printf(C_YELLOW"Generation Done!\n"SGR_RESET);
+            if (strcmp(projName, "") != 0){
+                printf(C_BR_CYAN"Project Generated!"SGR_RESET);
+                printf(C_BLUE"Type cd build && ./%s to run the executable. Happy Coding!"SGR_RESET, projName);
+            } else{
+                printf(C_BR_CYAN"Project Generated!"SGR_RESET);
+                printf(C_BLUE"Type cd build && ./MyCppProject to run the executable. Happy Coding!"SGR_RESET);
+            }
+        }
+}
     
     else{
         printf(C_RED"Unknown parameter provided, exiting..."SGR_RESET);

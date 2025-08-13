@@ -3,7 +3,7 @@
 #include <string.h>
 #include "include/colors.h"
 #ifdef __linux__
-#include <sys/wait.h>
+    #include <sys/wait.h>
 #endif
 
 void get_repo_name(const char *url, char *repo_name) {
@@ -61,9 +61,7 @@ int git(char *arg, char* link, char* dir){
                 system(linuxcmd);
             #endif
         }
-    }
-
-    if (strcmp(arg, "push-repo") == 0){
+    } else if (strcmp(arg, "push-repo") == 0){
         char choice[5];
         printf(C_RED"This command is only for pushing to empty repositories! Proceed(y/n): "SGR_RESET);
         fgets(choice, sizeof(choice), stdin);
@@ -111,13 +109,40 @@ int git(char *arg, char* link, char* dir){
                 }
 }
             }
-            
-
         } else{
             printf(C_BR_MAGENTA"Exiting Repo deployment.\n"SGR_RESET);
-        }
+        } 
 
-    }
+    } else if (strcmp(arg, "commit-info") == 0) {
+        printf(C_MAGENTA"Fetching commit history...\n\n"SGR_RESET);
+
+        char gitcmd[1024];
+
+        #if defined(__linux__) || defined(__APPLE__)
+            printf(C_BR_MAGENTA"\n");
+            system("rm -rf \"$HOME/repo_temp123\"");
+
+            sprintf(gitcmd, "git clone --quiet --bare --filter=blob:none \"%s\" \"$HOME/repo_temp123\"", link);
+            system(gitcmd);
+
+            system("cd \"$HOME/repo_temp123\" && git --no-pager log --pretty=format:\"%h | %an | %ad | %s\" --date=short");
+
+            system("rm -rf \"$HOME/repo_temp123\"");
+        #endif
+        #ifdef _WIN32
+            printf(C_BR_MAGENTA"\n");
+            system("rmdir /S /Q \"%USERPROFILE%\\repo_temp123\"");
+
+            sprintf(gitcmd, "git clone --quiet --bare --filter=blob:none \"%s\" \"%USERPROFILE%\\repo_temp123\"", link);
+            system(gitcmd);
+
+            system("cd /D \"%USERPROFILE%\\repo_temp123\" && git --no-pager log --pretty=format:\"%%h | %%an | %%ad | %%s\" --date=short");
+            
+            system("rmdir /S /Q \"%USERPROFILE%\\repo_temp123\"");
+        #endif
+
+}
+
 
     return 1;
 }
